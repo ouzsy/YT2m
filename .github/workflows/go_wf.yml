@@ -1,0 +1,71 @@
+name: Auto Update File to GitHub
+
+on:
+  schedule:
+    - cron: "40 23 * * *"  # 台灣時間 07:40（前一天 UTC 23:40）
+    - cron: "5 0 * * *"    # 台灣時間 08:05
+    - cron: "35 0 * * *"   # 台灣時間 08:35
+    - cron: "5 1 * * *"    # 台灣時間 09:05
+    - cron: "0 4 * * *"    # 台灣時間 12:00
+    - cron: "0 7 * * *"    # 台灣時間 15:00
+    - cron: "0 10 * * *"   # 台灣時間 18:00
+    - cron: "0 13 * * *"   # 台灣時間 21:00
+    - cron: "0 17 * * *"   # 台灣時間 01:00
+    - cron: "0 20 * * *"   # 台灣時間 04:00
+  workflow_dispatch:  # 手動觸發
+
+jobs:
+  update_m3u8:
+    runs-on: ubuntu-latest
+    env:
+      SF_L: ${{ secrets.SF_L }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+
+      - name: Install dependencies
+        run: |
+          pip install -U requests paramiko
+
+      - name: Output YT_COOKIE_B64 to cookie01.txt
+        run: echo "${{ secrets.YT_COOKIE_B64 }}" | base64 --decode > cookie01.txt 
+
+      - name: Decode and generate cookies.txt
+        run: |
+          if [ -z "${{ secrets.YT_COOKIE_B64 }}" ]; then
+            echo "❌ 環境變數 YT_COOKIE_B64 未設置"
+            exit 1
+          fi
+          echo "${{ secrets.YT_COOKIE_B64 }}" | base64 --decode | tr -d '\r' > cookies.txt
+          echo "✅ cookies.txt 生成完成"
+
+      - name: Run yt_m.py to parse M3U8
+        run: |
+          echo "🔍 開始執行 yt_m.py"
+          python3 scripts/yt_m.py
+
+      - name: Clean up cookies.txt
+        run: |
+          rm -f cookies.txt
+          echo "✅ cookies.txt 已刪除"
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+
+          if [[ -n "$(git status --porcelain output/)" ]]; then
+            echo "📂 偵測到 output 變更，開始提交..."
+            git add output/
+            git commit -m "🔄 更新 M3U8 文件 $(date '+%Y-%m-%d %H:%M:%S')"
+            git push origin main
+            echo "✅ 變更已提交至 GitHub"
+          else
+            echo "ℹ️ output 目錄沒有變更，不進行提交"
+            fi
