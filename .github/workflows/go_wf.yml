@@ -2,7 +2,7 @@ name: Auto Update File to GitHub
 
 on:
   schedule:
-    - cron: "40 23 * * *"  # 台灣時間 07:40（前一天 UTC 23:40）
+    - cron: "40 23 * * *"  # 台灣時間 07:40
     - cron: "5 0 * * *"    # 台灣時間 08:05
     - cron: "35 0 * * *"   # 台灣時間 08:35
     - cron: "5 1 * * *"    # 台灣時間 09:05
@@ -12,70 +12,56 @@ on:
     - cron: "0 13 * * *"   # 台灣時間 21:00
     - cron: "0 17 * * *"   # 台灣時間 01:00
     - cron: "0 20 * * *"   # 台灣時間 04:00
-  workflow_dispatch:  # 手動觸發
+  workflow_dispatch:
 
 jobs:
   update_m3u8:
     runs-on: ubuntu-latest
     env:
-      SF_L: ${{ secrets.SF_L }}  # 設定環境變數 SF_L，來自 GitHub Secrets
+      SF_L: ${{ secrets.SF_L }}
 
     steps:
-      # Checkout the repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Set up Python
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: '3.9'
+          python-version: 3.9
 
-      # Install dependencies
-      - name: Install dependencies
+      - name: Install Python dependencies
+        run: pip install -U requests paramiko
+
+      - name: Install yt-dlp
+        run: python3 -m pip install -U yt-dlp
+
+      - name: 🔐 Combine Base64 cookie segments into cookies.b64
         run: |
-          pip install -U yt-dlp paramiko
+          echo "${{ secrets.YT_COOKIE_B64_P1 }}" > cookies.b64
+          echo "${{ secrets.YT_COOKIE_B64_P2 }}" >> cookies.b64
+          echo "${{ secrets.YT_COOKIE_B64_P3 }}" >> cookies.b64
+          echo "✅ cookies.b64 組合完成"
 
-      # Decode YT_COOKIE_B64 and generate cookies.txt
-      - name: Output YT_COOKIE_B64 to cookie01.txt
-        run: echo "${{ secrets.YT_COOKIE_B64 }}" | base64 --decode > cookie01.txt 
-
-      - name: Decode and generate cookies.txt
+      - name: 📄 Decode cookies.b64 into cookies.txt
         run: |
-          if [ -z "${{ secrets.YT_COOKIE_B64 }}" ]; then
-            echo "❌ 環境變數 YT_COOKIE_B64 未設置"
-            exit 1
-          fi
+          base64 -d cookies.b64 > cookies.txt
+          echo "✅ cookies.txt 已生成"
 
-          # 解碼 YT_COOKIE_B64 並生成 cookies.txt
-          echo "${{ secrets.YT_COOKIE_B64 }}" | base64 --decode | tr -d '\r' > cookies.txt
-          echo "✅ cookies.txt 生成完成"
+      - name: 🚀 Run yt_m.py to parse M3U8
+        run: python3 scripts/yt_m.py
 
-      # Run the Python script (yt_m.py)
-      - name: Run yt_m.py to parse M3U8
-        run: |
-          echo "🔍 開始執行 yt_m.py"
-          python3 scripts/yt_m.py
+      - name: 🧹 Clean up temporary files
+        run: rm -f cookies.b64 cookies.txt
 
-      # Remove cookies.txt for privacy
-      - name: Clean up cookies.txt
-        run: |
-          rm -f cookies.txt
-          echo "✅ cookies.txt 已刪除"
-
-      # Commit and push changes to GitHub
-      - name: Commit and push changes
+      - name: 📤 Commit and push output changes
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
-
-          # Check for changes in the output directory
           if [[ -n "$(git status --porcelain output/)" ]]; then
-            echo "📂 偵測到 output 變更，開始提交..."
             git add output/
-            git commit -m "🔄 更新 M3U8 文件 $(date '+%Y-%m-%d %H:%M:%S')"
+            git commit -m "🔄 更新 M3U8 $(date '+%Y-%m-%d %H:%M:%S')"
             git push origin main
-            echo "✅ 變更已提交至 GitHub"
+            echo "✅ 已提交變更"
           else
-            echo "ℹ️ output 目錄沒有變更，不進行提交"
-          fi
+            echo "ℹ️ output 目錄無變更，略過提交"
+            fi
