@@ -18,21 +18,25 @@ jobs:
   update_m3u8:
     runs-on: ubuntu-latest
     env:
-      SF_L: ${{ secrets.SF_L }}
+      SF_L: ${{ secrets.SF_L }}  # 設定環境變數 SF_L，來自 GitHub Secrets
 
     steps:
+      # Checkout the repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Set up Python
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: 3.9
+          python-version: '3.9'
 
+      # Install dependencies
       - name: Install dependencies
         run: |
-          pip install -U requests paramiko
+          pip install -U yt-dlp paramiko
 
+      # Decode YT_COOKIE_B64 and generate cookies.txt
       - name: Output YT_COOKIE_B64 to cookie01.txt
         run: echo "${{ secrets.YT_COOKIE_B64 }}" | base64 --decode > cookie01.txt 
 
@@ -42,24 +46,30 @@ jobs:
             echo "❌ 環境變數 YT_COOKIE_B64 未設置"
             exit 1
           fi
+
+          # 解碼 YT_COOKIE_B64 並生成 cookies.txt
           echo "${{ secrets.YT_COOKIE_B64 }}" | base64 --decode | tr -d '\r' > cookies.txt
           echo "✅ cookies.txt 生成完成"
 
+      # Run the Python script (yt_m.py)
       - name: Run yt_m.py to parse M3U8
         run: |
           echo "🔍 開始執行 yt_m.py"
           python3 scripts/yt_m.py
 
+      # Remove cookies.txt for privacy
       - name: Clean up cookies.txt
         run: |
           rm -f cookies.txt
           echo "✅ cookies.txt 已刪除"
 
+      # Commit and push changes to GitHub
       - name: Commit and push changes
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
 
+          # Check for changes in the output directory
           if [[ -n "$(git status --porcelain output/)" ]]; then
             echo "📂 偵測到 output 變更，開始提交..."
             git add output/
@@ -68,4 +78,4 @@ jobs:
             echo "✅ 變更已提交至 GitHub"
           else
             echo "ℹ️ output 目錄沒有變更，不進行提交"
-            fi
+          fi
