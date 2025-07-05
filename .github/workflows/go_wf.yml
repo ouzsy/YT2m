@@ -46,11 +46,6 @@ jobs:
             sleep 5
           done
 
-      - name: 🧹 Clean up cookies.txt
-        run: |
-          rm -f cookies.txt
-          echo "✅ cookies.txt 已刪除"
-
       - name: 💾 Commit and push changes
         run: |
           git config --global user.name "github-actions"
