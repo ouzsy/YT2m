@@ -33,16 +33,9 @@ jobs:
       - name: 📦 Install dependencies
         run: pip install -U httpx[http2] paramiko
 
-      - name: 🔐 Combine Base64 cookie segments into cookies.b64
+      - name: 🔐 into cookies.txt
         run: |
-          echo "${{ secrets.YT_COOKIE_B64_P1 }}" > cookies.b64
-          echo "${{ secrets.YT_COOKIE_B64_P2 }}" >> cookies.b64
-          echo "${{ secrets.YT_COOKIE_B64_P3 }}" >> cookies.b64
-          echo "✅ cookies.b64 組合完成"
-
-      - name: 📄 Decode cookies.b64 into cookies.txt
-        run: |
-          base64 -d cookies.b64 > cookies.txt
+          echo "${{ secrets.YT_COOKIE }}" > cookies.txt
           echo "✅ cookies.txt 已生成"
 
       - name: 🔍 Run yt_m.py to parse M3U8
