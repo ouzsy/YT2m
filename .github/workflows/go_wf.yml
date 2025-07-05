@@ -1,8 +1,6 @@
 name: Auto Update File to GitHub
 
 on:
-  schedule:
-    
   workflow_dispatch:
 
 jobs:
